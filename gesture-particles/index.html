@@ -2,14 +2,92 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>gesture-particles</title>
-    <video id="webcam" autoplay playsinline></video>
+    <title>Three.js + MediaPipe Hand Landmarker</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        background: #0b0b0f;
+        overflow: hidden;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      }
+
+      #app {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+      }
+
+      /* Raw webcam feed. We keep it in the DOM (MediaPipe needs an actual
+         <video> element to read frames from) but we visually hide it,
+         since the feed is re-drawn inside the Three.js canvas as a texture. */
+      #webcam {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      #three-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      #status {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        z-index: 10;
+        color: #e5e5e5;
+        background: rgba(0, 0, 0, 0.55);
+        padding: 8px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        line-height: 1.5;
+        max-width: 320px;
+        backdrop-filter: blur(4px);
+      }
+
+      #status .dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #f59e0b;
+        margin-right: 6px;
+      }
+
+      #status.ready .dot {
+        background: #22c55e;
+      }
+
+      #status.error .dot {
+        background: #ef4444;
+      }
+    </style>
   </head>
   <body>
-    <div id="app"></div>
-    <video id="webcam" autoplay playsinline></video>
+    <div id="app">
+      <video id="webcam" autoplay playsinline muted></video>
+      <canvas id="three-canvas"></canvas>
+      <div id="status"><span class="dot"></span><span id="status-text">Starting camera…</span></div>
+    </div>
+
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
