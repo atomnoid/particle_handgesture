@@ -17,7 +17,12 @@
         height: 100%;
         background: #0b0b0f;
         overflow: hidden;
-        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        font-family:
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          sans-serif;
       }
 
       #app {
@@ -79,14 +84,27 @@
       #status.error .dot {
         background: #ef4444;
       }
+      #finger-dot {
+        position: fixed;
+        width: 20px;
+        height: 20px;
+        background: red;
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 9999;
+        transform: translate(-50%, -50%);
+      }
     </style>
   </head>
   <body>
     <div id="app">
       <video id="webcam" autoplay playsinline muted></video>
       <canvas id="three-canvas"></canvas>
-      <div id="status"><span class="dot"></span><span id="status-text">Starting camera…</span></div>
+      <div id="status">
+        <span class="dot"></span><span id="status-text">Starting camera…</span>
+      </div>
     </div>
+    <div id="finger-dot"></div>
 
     <script type="module" src="/src/main.js"></script>
   </body>
