@@ -1,33 +1,19 @@
-/**
- * Requests webcam access and wires the stream into the given <video> element.
- * Resolves once the video has usable dimensions (loadeddata), which is the
- * point at which MediaPipe's detectForVideo() can safely start reading frames.
- *
- * @param {HTMLVideoElement} videoEl
- * @returns {Promise<HTMLVideoElement>}
- */
-export async function startWebcam(videoEl) {
-  if (!navigator.mediaDevices?.getUserMedia) {
-    throw new Error("getUserMedia is not supported in this browser.");
-  }
-
+export async function startWebcam(video) {
   const stream = await navigator.mediaDevices.getUserMedia({
     video: {
-      width: { ideal: 1280 },
-      height: { ideal: 720 },
       facingMode: "user",
+      width: 1280,
+      height: 720,
     },
     audio: false,
   });
 
-  videoEl.srcObject = stream;
+  video.srcObject = stream;
 
-  await new Promise((resolve, reject) => {
-    videoEl.onloadeddata = () => resolve();
-    videoEl.onerror = (e) => reject(e);
+  return new Promise((resolve) => {
+    video.onloadedmetadata = async () => {
+      await video.play();
+      resolve(video);
+    };
   });
-
-  await videoEl.play();
-
-  return videoEl;
 }
