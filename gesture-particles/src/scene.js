@@ -1,144 +1,245 @@
 import * as THREE from "three";
 
-const NUM_LANDMARKS = 21;
-
-// 21-point hand skeleton connections (MediaPipe hand topology).
-const HAND_CONNECTIONS = [
-  [0, 1], [1, 2], [2, 3], [3, 4], // thumb
-  [0, 5], [5, 6], [6, 7], [7, 8], // index
-  [5, 9], [9, 10], [10, 11], [11, 12], // middle
-  [9, 13], [13, 14], [14, 15], [15, 16], // ring
-  [13, 17], [17, 18], [18, 19], [19, 20], // pinky
-  [0, 17], // palm base
+const CONNECTIONS = [
+  [0,1],[1,2],[2,3],[3,4],
+  [0,5],[5,6],[6,7],[7,8],
+  [5,9],[9,10],[10,11],[11,12],
+  [9,13],[13,14],[14,15],[15,16],
+  [13,17],[17,18],[18,19],[19,20],
+  [0,17]
 ];
 
-/**
- * Encapsulates the Three.js side of the app: a fullscreen video-textured
- * background plane (the webcam feed) plus a set of spheres/lines overlaid
- * in screen space to represent the 21 hand landmarks.
- */
-export class HandScene {
-  /**
-   * @param {HTMLCanvasElement} canvas
-   * @param {HTMLVideoElement} videoEl
-   */
-  constructor(canvas, videoEl) {
-    this.canvas = canvas;
-    this.videoEl = videoEl;
+export class HandScene{
 
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    constructor(canvas,video){
 
-    this.scene = new THREE.Scene();
+        this.video=video;
 
-    // Orthographic camera mapped to normalized [-1, 1] space; makes it easy
-    // to place landmark markers directly from MediaPipe's normalized x/y.
-    this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
-    this.camera.position.z = 1;
+        this.renderer=new THREE.WebGLRenderer({
+            canvas,
+            antialias:true,
+            alpha:true
+        });
 
-    this._buildBackground();
-    this._buildLandmarkMarkers();
+        this.renderer.setPixelRatio(window.devicePixelRatio);
 
-    window.addEventListener("resize", () => this._onResize());
-    this._onResize();
-  }
+        this.renderer.setSize(
+            window.innerWidth,
+            window.innerHeight
+        );
 
-  _buildBackground() {
-    this.videoTexture = new THREE.VideoTexture(this.videoEl);
-    this.videoTexture.minFilter = THREE.LinearFilter;
-    this.videoTexture.magFilter = THREE.LinearFilter;
-    this.videoTexture.colorSpace = THREE.SRGBColorSpace;
+        this.scene=new THREE.Scene();
 
-    // Mirror horizontally so it feels like a mirror, matching how most
-    // "selfie view" hand-tracking demos behave.
-    const geometry = new THREE.PlaneGeometry(2, 2);
-    const material = new THREE.MeshBasicMaterial({ map: this.videoTexture, depthTest: false });
-    this.backgroundMesh = new THREE.Mesh(geometry, material);
-    this.backgroundMesh.position.z = -1;
-    this.backgroundMesh.scale.x = -1; // mirror
-    this.scene.add(this.backgroundMesh);
-  }
+        this.camera=new THREE.OrthographicCamera(
+            -1,
+            1,
+            1,
+            -1,
+            0.1,
+            100
+        );
 
-  _buildLandmarkMarkers() {
-    // 21 small spheres, one per landmark.
-    const sphereGeo = new THREE.SphereGeometry(0.015, 12, 12);
-    const sphereMat = new THREE.MeshBasicMaterial({ color: 0x22c55e });
+        this.camera.position.z=5;
 
-    this.markers = [];
-    for (let i = 0; i < NUM_LANDMARKS; i++) {
-      const mesh = new THREE.Mesh(sphereGeo, sphereMat);
-      mesh.visible = false;
-      this.scene.add(mesh);
-      this.markers.push(mesh);
+        this.createBackground();
+
+        this.createLandmarks();
+
+        window.addEventListener("resize",()=>{
+
+            this.renderer.setSize(
+                window.innerWidth,
+                window.innerHeight
+            );
+
+        });
+
     }
 
-    // Skeleton connections, drawn as a single LineSegments object updated
-    // every frame from the current landmark positions.
-    const lineGeometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(HAND_CONNECTIONS.length * 2 * 3);
-    lineGeometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    const lineMaterial = new THREE.LineBasicMaterial({ color: 0x38bdf8 });
-    this.skeleton = new THREE.LineSegments(lineGeometry, lineMaterial);
-    this.skeleton.visible = false;
-    this.scene.add(this.skeleton);
-  }
+    createBackground(){
 
-  _onResize() {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    this.renderer.setSize(width, height, false);
-  }
+        this.videoTexture=new THREE.VideoTexture(this.video);
 
-  /**
-   * Converts MediaPipe normalized landmark coords (x,y in [0,1], origin
-   * top-left) into our [-1, 1] orthographic-camera space, applying the same
-   * horizontal mirroring as the background plane.
-   */
-  _toClipSpace(landmark) {
-    const x = -(landmark.x * 2 - 1); // mirrored to match background
-    const y = -(landmark.y * 2 - 1); // flip Y (image space -> GL space)
-    const z = -landmark.z; // MediaPipe z is roughly depth-from-camera, small scale
-    return [x, y, z];
-  }
+        this.videoTexture.minFilter=THREE.LinearFilter;
+        this.videoTexture.magFilter=THREE.LinearFilter;
 
-  /**
-   * Updates marker/skeleton positions from a MediaPipe HandLandmarkerResult.
-   * Pass `null`/empty when no hand is currently detected.
-   * @param {Array<Array<{x:number,y:number,z:number}>>} handLandmarksList
-   */
-  updateLandmarks(handLandmarksList) {
-    const hasHand = handLandmarksList && handLandmarksList.length > 0;
+        const geo=new THREE.PlaneGeometry(2,2);
 
-    if (!hasHand) {
-      this.markers.forEach((m) => (m.visible = false));
-      this.skeleton.visible = false;
-      return;
+        const mat=new THREE.MeshBasicMaterial({
+
+            map:this.videoTexture
+
+        });
+
+        this.bg=new THREE.Mesh(geo,mat);
+
+        this.bg.scale.x=-1;
+
+        this.bg.position.z=-5;
+
+        this.scene.add(this.bg);
+
     }
 
-    const landmarks = handLandmarksList[0]; // numHands: 1
+    createLandmarks(){
 
-    landmarks.forEach((lm, i) => {
-      const [x, y, z] = this._toClipSpace(lm);
-      const marker = this.markers[i];
-      marker.position.set(x, y, z);
-      marker.visible = true;
-    });
+        this.points=[];
 
-    const posAttr = this.skeleton.geometry.getAttribute("position");
-    HAND_CONNECTIONS.forEach(([a, b], idx) => {
-      const [ax, ay, az] = this._toClipSpace(landmarks[a]);
-      const [bx, by, bz] = this._toClipSpace(landmarks[b]);
-      posAttr.setXYZ(idx * 2, ax, ay, az);
-      posAttr.setXYZ(idx * 2 + 1, bx, by, bz);
-    });
-    posAttr.needsUpdate = true;
-    this.skeleton.visible = true;
-  }
+        const geo=new THREE.SphereGeometry(
+            0.02,
+            20,
+            20
+        );
 
-  render() {
-    if (this.videoEl.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-      this.videoTexture.needsUpdate = true;
+        for(let i=0;i<21;i++){
+
+            const color=i===8
+            ?0xff3333
+            :0x00ffff;
+
+            const mat=new THREE.MeshBasicMaterial({
+
+                color
+
+            });
+
+            const sphere=new THREE.Mesh(
+                geo,
+                mat
+            );
+
+            sphere.visible=false;
+
+            this.scene.add(sphere);
+
+            this.points.push(sphere);
+
+        }
+
+        const positions=new Float32Array(
+            CONNECTIONS.length*2*3
+        );
+
+        this.lineGeometry=new THREE.BufferGeometry();
+
+        this.lineGeometry.setAttribute(
+            "position",
+            new THREE.BufferAttribute(
+                positions,
+                3
+            )
+        );
+
+        const lineMaterial=new THREE.LineBasicMaterial({
+
+            color:0xffffff
+
+        });
+
+        this.lines=new THREE.LineSegments(
+            this.lineGeometry,
+            lineMaterial
+        );
+
+        this.lines.visible=false;
+
+        this.scene.add(this.lines);
+
     }
-    this.renderer.render(this.scene, this.camera);
-  }
+
+    convert(lm){
+
+        return{
+
+            x:-(lm.x*2-1),
+            y:-(lm.y*2-1),
+            z:-lm.z
+
+        };
+
+    }
+
+    updateLandmarks(handList){
+
+        if(!handList || handList.length===0){
+
+            this.points.forEach(p=>p.visible=false);
+
+            this.lines.visible=false;
+
+            return;
+
+        }
+
+        const hand=handList[0];
+
+        hand.forEach((lm,i)=>{
+
+            const p=this.convert(lm);
+
+            this.points[i].visible=true;
+
+            this.points[i].position.set(
+                p.x,
+                p.y,
+                p.z
+            );
+
+            if(i===8){
+
+                this.points[i].scale.setScalar(1.8);
+
+            }else{
+
+                this.points[i].scale.setScalar(1);
+
+            }
+
+        });
+
+        const pos=this.lineGeometry.attributes.position;
+
+        CONNECTIONS.forEach((c,index)=>{
+
+            const a=this.convert(hand[c[0]]);
+
+            const b=this.convert(hand[c[1]]);
+
+            pos.setXYZ(
+                index*2,
+                a.x,
+                a.y,
+                a.z
+            );
+
+            pos.setXYZ(
+                index*2+1,
+                b.x,
+                b.y,
+                b.z
+            );
+
+        });
+
+        pos.needsUpdate=true;
+
+        this.lines.visible=true;
+
+    }
+
+    render(){
+
+        if(this.video.readyState>=2){
+
+            this.videoTexture.needsUpdate=true;
+
+        }
+
+        this.renderer.render(
+            this.scene,
+            this.camera
+        );
+
+    }
+
 }
