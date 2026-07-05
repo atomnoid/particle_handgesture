@@ -1,47 +1,51 @@
 import { startWebcam } from "./webcam.js";
-import { createHandLandmarker, detectHandsForVideo } from "./handLandmarker.js";
+import {
+  createHandLandmarker,
+  detectHandsForVideo,
+} from "./handLandmarker.js";
+
 import { HandScene } from "./scene.js";
 
-const videoEl = document.getElementById("webcam");
-const canvasEl = document.getElementById("three-canvas");
-const statusEl = document.getElementById("status");
-const statusTextEl = document.getElementById("status-text");
+const video = document.getElementById("webcam");
+const canvas = document.getElementById("three-canvas");
 
-function setStatus(text, mode = "loading") {
-  statusTextEl.textContent = text;
-  statusEl.classList.remove("ready", "error");
-  if (mode === "ready") statusEl.classList.add("ready");
-  if (mode === "error") statusEl.classList.add("error");
+const status = document.getElementById("status");
+const statusText = document.getElementById("status-text");
+
+function setStatus(text, type = "") {
+  status.classList.remove("ready", "error");
+
+  if (type) status.classList.add(type);
+
+  statusText.textContent = text;
 }
 
-async function main() {
+async function init() {
   try {
-    setStatus("Requesting camera access…");
-    await startWebcam(videoEl);
+    setStatus("Opening Camera...");
 
-    setStatus("Loading hand landmarker model…");
+    await startWebcam(video);
+
+    setStatus("Loading MediaPipe Model...");
+
     await createHandLandmarker();
 
-    setStatus("Tracking hand…", "ready");
+    setStatus("Tracking Hand", "ready");
 
-    const scene = new HandScene(canvasEl, videoEl);
+    const scene = new HandScene(canvas, video);
 
-    let lastVideoTime = -1;
+    let lastTime = -1;
 
-    function renderLoop() {
-      requestAnimationFrame(renderLoop);
+    function animate() {
+      requestAnimationFrame(animate);
 
-      // detectForVideo requires a new video frame each call; guard against
-      // running detection twice on the same frame.
-      if (videoEl.currentTime !== lastVideoTime) {
-        lastVideoTime = videoEl.currentTime;
+      if (video.currentTime !== lastTime) {
+        lastTime = video.currentTime;
 
-        const result = detectHandsForVideo(videoEl, performance.now());
-
-        if (result.landmarks && result.landmarks.length > 0) {
-          // Log all 21 landmarks for the first detected hand, as requested.
-          console.log("Hand landmarks:", result.landmarks[0]);
-        }
+        const result = detectHandsForVideo(
+          video,
+          performance.now()
+        );
 
         scene.updateLandmarks(result.landmarks);
       }
@@ -49,11 +53,12 @@ async function main() {
       scene.render();
     }
 
-    renderLoop();
+    animate();
   } catch (err) {
     console.error(err);
-    setStatus(`Error: ${err.message}`, "error");
+
+    setStatus(err.message, "error");
   }
 }
 
-main();
+init();
